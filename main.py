@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from db import session 
-from models import Student, Course, Enrollment
+from models import Students, Courses, Enrollments
 
 app = FastAPI()
 
@@ -20,21 +20,21 @@ app.add_middleware(
 
 @app.post("/create/student")
 async def create_student(name: str):
-    student = Student(name=name)
+    student = Students(name=name)
     session.add(student)
     session.commit()
     return {"Student created": student.name}
 
 @app.post("/create/course")
 async def create_course(name: str):
-    course = Course(name=name)
+    course = Courses(name=name)
     session.add(course)
     session.commit()
     return {"Course created": course.name}
 
 @app.post("/create/enrollment")
 async def create_enrollment(student_id: int, course_id: int):
-    enrollment = Enrollment(student_id=student_id, course_id=course_id)
+    enrollment = Enrollments(student_id=student_id, course_id=course_id)
     session.add(enrollment)
     session.commit()
     return {"Enrollment created": f"Student {student_id} enrolled in Course {course_id}"}
@@ -45,22 +45,32 @@ async def read_root():
 
 @app.get("/students")
 async def read_students():
-    students = session.query(Student)
+    students = session.query(Students)
     return students.all()
 
 @app.get("/courses")
 async def read_courses():
-    courses = session.query(Course)
+    courses = session.query(Courses)
     return courses.all()
 
 @app.get("/enrollment")
 async def read_enrollment():
-    enrollments = session.query(Enrollment)
-    return enrollments.all()
+    enrollments = session.query(Enrollments, Students, Courses).join(Students, Students.id == Enrollments.student_id).join(Courses, Courses.id == Enrollments.course_id)
+    results = enrollments.all()
+    enrollment_list = []
+    for enrollments in results:
+        enrollment_dict = {
+            "enrollment_id": enrollments.Enrollments.enrollment_id,
+            "student_name": enrollments.Students.name,
+            "course_name": enrollments.Courses.name,
+            "enrollment_date": enrollments.Enrollments.enrollment_date
+        }
+        enrollment_list.append(enrollment_dict)
+    return enrollment_list
 
 @app.put("/update/student/{id}")
 async def update_student(id: int, name: str):
-    student = session.query(Student).filter(Student.id == id).first()
+    student = session.query(Students).filter(Students.id == id).first()
     if student:
         student.name = name
         session.commit()
@@ -70,7 +80,7 @@ async def update_student(id: int, name: str):
     
 @app.put("/update/course/{id}")
 async def update_course(id: int, name: str):
-    course = session.query(Course).filter(Course.id == id).first()
+    course = session.query(Courses).filter(Courses.id == id).first()
     if course:
         course.name = name
         session.commit()
@@ -80,7 +90,7 @@ async def update_course(id: int, name: str):
     
 @app.put("/update/enrollment/{id}")
 async def update_enrollment(id: int, student_id: int, course_id: int):
-    enrollment = session.query(Enrollment).filter(Enrollment.id == id).first()
+    enrollment = session.query(Enrollments).filter(Enrollments.id == id).first()
     if enrollment:
         enrollment.student_id = student_id
         enrollment.course_id = course_id
@@ -91,7 +101,7 @@ async def update_enrollment(id: int, student_id: int, course_id: int):
     
 @app.delete("/delete/student/{id}")
 async def delete_student(id: int):
-    student = session.query(Student).filter(Student.id == id).first()
+    student = session.query(Students).filter(Students.id == id).first()
     if student:
         session.delete(student)
         session.commit()
@@ -101,7 +111,7 @@ async def delete_student(id: int):
     
 @app.delete("/delete/course/{id}")
 async def delete_course(id: int):
-    course = session.query(course).filter(Course.id == id).first()
+    course = session.query(course).filter(Courses.id == id).first()
     if course:
         session.delete(course)
         session.commit()
@@ -111,7 +121,7 @@ async def delete_course(id: int):
     
 @app.delete("/delete/enrollment/{id}")
 async def delete_enrollment(id: int):
-    enrollment = session.query(Enrollment).filter(Enrollment.id == id).first()
+    enrollment = session.query(Enrollments).filter(Enrollments.id == id).first()
     if enrollment:
         session.delete(enrollment)
         session.commit()
